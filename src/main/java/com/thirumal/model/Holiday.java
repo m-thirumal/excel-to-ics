@@ -19,7 +19,9 @@ public class Holiday {
 	
     private LocalDate date;
     private String branch;
+    private String location;
     private String summary;
     private String description;
+    private String imageLink;
 
 }
