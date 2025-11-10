@@ -1,8 +1,5 @@
 package com.thirumal.service;
 
-import static net.fortuna.ical4j.model.property.immutable.ImmutableCalScale.GREGORIAN;
-import static net.fortuna.ical4j.model.property.immutable.ImmutableVersion.VERSION_2_0;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -26,22 +23,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.thirumal.Holiday;
+import com.thirumal.model.Holiday;
 
 import net.fortuna.ical4j.data.CalendarOutputter;
 import net.fortuna.ical4j.model.Calendar;
-import net.fortuna.ical4j.model.ComponentList;
-import net.fortuna.ical4j.model.PropertyList;
+import net.fortuna.ical4j.model.Date;
 import net.fortuna.ical4j.model.component.VEvent;
+import net.fortuna.ical4j.model.property.CalScale;
 import net.fortuna.ical4j.model.property.Categories;
 import net.fortuna.ical4j.model.property.Description;
-import net.fortuna.ical4j.model.property.DtStart;
 import net.fortuna.ical4j.model.property.ProdId;
-import net.fortuna.ical4j.model.property.Status;
-import net.fortuna.ical4j.model.property.Summary;
-import net.fortuna.ical4j.model.property.Transp;
 import net.fortuna.ical4j.model.property.Uid;
-import net.fortuna.ical4j.model.property.XProperty;
+import net.fortuna.ical4j.model.property.Version;
 
 /**
  * @author ThirumalM
@@ -114,48 +107,58 @@ public class GenerateIcsService {
         return map;
     }
 
-    private File createIcsFile(String branch, List<Holiday> holidays) throws Exception {
-        PropertyList properties = new PropertyList();
-        properties.add(new ProdId("-//NeSL//" + branch + " Holidays 2026//EN"));
-        properties.add(VERSION_2_0);
-        properties.add(GREGORIAN);
-        properties.add(new XProperty("X-WR-CALNAME", branch + " Holidays 2026"));
-        properties.add(new XProperty("X-WR-TIMEZONE", "Asia/Kolkata"));
-        
-        Calendar calendar = new Calendar(properties, new ComponentList());
-        
-        for (Holiday h : holidays) {
-        	logger.info("Adding holiday: {} - {} ({})", h.getDate(), h.getSummary(), branch);
-            // Define required properties
-            DtStart<LocalDate> start = new DtStart<>(h.getDate());
-         //   start.getParameters().add(Value.DATE); // ensures it's treated as all-day event
-            //
-            Summary summary = new Summary(h.getSummary());
-            Description desc = new Description(h.getDescription());
-            Uid uid = new Uid(UUID.randomUUID().toString());
-            Categories categories = new Categories(branch);
-            Status status = new Status(Status.VALUE_CONFIRMED);
-            Transp transp = new Transp(Transp.VALUE_TRANSPARENT);
 
-            // Create the event
-            VEvent event = new VEvent(new PropertyList(), new ComponentList());
-            event.getProperties().add(start);
-            event.getProperties().add(summary);
-            event.getProperties().add(desc);
-            event.getProperties().add(uid);
-            event.getProperties().add(categories);
-            event.getProperties().add(status);
-            event.getProperties().add(transp);
+
+private File createIcsFile(String branch, List<Holiday> holidays) throws Exception {
+    logger.info("Creating iCalendar for branch: {}", branch);
+
+    // ---- Create the calendar ----
+    Calendar calendar = new Calendar();
+    calendar.getProperties().add(new ProdId("-//NeSL//" + branch + " Holidays 2026//EN"));
+    calendar.getProperties().add(Version.VERSION_2_0);
+    calendar.getProperties().add(CalScale.GREGORIAN);
+
+    // ---- Add each holiday as a VEvent ----
+    for (Holiday h : holidays) {
+        try {
+            LocalDate localDate = h.getDate();
+            if (localDate == null) {
+                logger.warn("Skipping holiday with null date: {}", h);
+                continue;
+            }
+
+            // Convert LocalDate -> ical4j Date (all-day event)
+            Date icalDate = new Date(java.sql.Date.valueOf(localDate));
+
+            // Create all-day event
+            VEvent event = new VEvent(icalDate, h.getSummary());
+            event.getProperties().add(new Uid(UUID.randomUUID().toString()));
+
+            if (h.getDescription() != null && !h.getDescription().isEmpty()) {
+                event.getProperties().add(new Description(h.getDescription()));
+            }
+
+            event.getProperties().add(new Categories(branch));
 
             calendar.getComponents().add(event);
-        }
 
+            logger.info("Added holiday: {} - {}", h.getDate(), h.getSummary());
 
-        File file = new File(branch.replaceAll("\\s+", "_") + "_Holidays.ics");
-        try (FileOutputStream fout = new FileOutputStream(file)) {
-            new CalendarOutputter().output(calendar, fout);
+        } catch (Exception e) {
+            logger.error("Error creating event for {}", h.getDate(), e);
         }
-        return file;
     }
+
+    // ---- Write the file ----
+    File file = new File(branch.replaceAll("\\s+", "_") + "_Holidays.ics");
+    try (FileOutputStream fout = new FileOutputStream(file)) {
+        CalendarOutputter outputter = new CalendarOutputter();
+        outputter.output(calendar, fout);
+    }
+
+    logger.info("ICS file created successfully: {}", file.getAbsolutePath());
+    return file;
+}
+
 
 }

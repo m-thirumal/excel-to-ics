@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.thirumal;
+package com.thirumal.model;
 
 import java.time.LocalDate;
 

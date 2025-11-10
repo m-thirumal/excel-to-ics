@@ -44,7 +44,7 @@
 		<dependency>
 		    <groupId>org.mnode.ical4j</groupId>
 		    <artifactId>ical4j</artifactId>
-		    <version>4.2.0</version>
+		    <version>3.2.10</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.springdoc/springdoc-openapi-starter-webmvc-ui -->
 		<dependency>
