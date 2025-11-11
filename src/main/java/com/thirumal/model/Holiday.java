@@ -17,6 +17,7 @@ import lombok.Data;
 @AllArgsConstructor
 public class Holiday {
 	
+	private String uid;
     private LocalDate date;
     private String branch;
     private String location;

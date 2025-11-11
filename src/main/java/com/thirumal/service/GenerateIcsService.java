@@ -101,14 +101,15 @@ public class GenerateIcsService {
                     continue;
                 }
                 logger.debug("Row : {}", row);
-                LocalDate date = row.getCell(0).getLocalDateTimeCellValue().toLocalDate();
-                String branch = row.getCell(1).getStringCellValue().trim();
-                String location = row.getCell(2).getStringCellValue().trim();
-                String summary = row.getCell(3).getStringCellValue().trim();
-                String desc = (row.getCell(4) != null) ? row.getCell(4).getStringCellValue().trim() : "";
-                String imageLink = (row.getCell(5) != null) ? row.getCell(5).getStringCellValue().trim() : "";
+                String uid = row.getCell(0).getStringCellValue().trim();
+                LocalDate date = row.getCell(1).getLocalDateTimeCellValue().toLocalDate();
+                String branch = row.getCell(2).getStringCellValue().trim();
+                String location = row.getCell(3).getStringCellValue().trim();
+                String summary = row.getCell(4).getStringCellValue().trim();
+                String desc = (row.getCell(5) != null) ? row.getCell(5).getStringCellValue().trim() : "";
+                String imageLink = (row.getCell(6) != null) ? row.getCell(6).getStringCellValue().trim() : "";
                 map.computeIfAbsent(branch, k -> new ArrayList<>())
-                        .add(new Holiday(date, branch, location, summary, desc, imageLink));
+                        .add(new Holiday(uid, date, branch, location, summary, desc, imageLink));
             }
         }
         return map;
@@ -126,6 +127,12 @@ public class GenerateIcsService {
 	    // ---- Add each holiday as a VEvent ----
 	    for (Holiday h : holidays) {
 	        try {
+	            String uidValue = h.getUid();
+	            if (uidValue == null || uidValue.isEmpty()) {
+	                uidValue = UUID.randomUUID().toString();
+	                h.setUid(uidValue);  // store back to object, then write to Excel later
+	            }
+	            
 	            LocalDate localDate = h.getDate();
 	            if (localDate == null) {
 	                logger.warn("Skipping holiday with null date: {}", h);
@@ -138,8 +145,9 @@ public class GenerateIcsService {
 	
 	            // Create all-day event
 	            VEvent event = new VEvent(icalDate, h.getSummary());
-	            event.getProperties().add(new Uid(UUID.randomUUID().toString()));
-	
+	            //Uid
+	            event.getProperties().add(new Uid(uidValue));
+	            //Description
 	            if (h.getDescription() != null && !h.getDescription().isEmpty()) {
 	                event.getProperties().add(new Description(h.getDescription()));
 	            }
